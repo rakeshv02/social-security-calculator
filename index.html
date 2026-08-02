@@ -104,7 +104,7 @@ footer{text-align:center;padding:32px 16px;color:#475569;font-size:12px;border-t
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:32px">
     <a href="https://retirement-calculator.tabutility.com/" style="display:block;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 16px;text-decoration:none"><div style="font-size:13px;font-weight:600;color:#f1f5f9">FIRE / Retirement Calculator</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Calculators</div></a>
     <a href="https://us-401k.tabutility.com/" style="display:block;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 16px;text-decoration:none"><div style="font-size:13px;font-weight:600;color:#f1f5f9">401(k) Calculator</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Calculators</div></a>
-    <a href="https://hsa-calculator.tabutility.com/" style="display:block;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 16px;text-decoration:none"><div style="font-size:13px;font-weight:600;color:#f1f5f9">HSA Calculator</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Calculators</div></a>
+    <a href="https://us-capital-gains-tax.tabutility.com/" style="display:block;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 16px;text-decoration:none"><div style="font-size:13px;font-weight:600;color:#f1f5f9">US Capital Gains Tax</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Calculators</div></a>
     <a href="https://us-paycheck-calculator.tabutility.com/" style="display:block;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:12px 16px;text-decoration:none"><div style="font-size:13px;font-weight:600;color:#f1f5f9">US Paycheck Calculator</div><div style="font-size:11px;color:#94a3b8;margin-top:2px">Calculators</div></a>
   </div>
   <div class="card">
@@ -199,12 +199,12 @@ function calc() {
   document.getElementById('r-fra-age').textContent = fraDisplay;
   document.getElementById('r-max-benefit').textContent = fmt(maxMonthly);
 
-  // Strategy message
+  // Strategy message — compare integer retAge against fractional fra
   const stratMsg = document.getElementById('strategy-msg');
-  if (retAge < fraInt) {
+  if (retAge < fra) {
     const pctLess = ((1 - selectedFactor) * 100).toFixed(1);
     stratMsg.textContent = `⚠️ Claiming at ${retAge} is ${pctLess}% less than your FRA benefit of ${fmt(fraMonthly)}/mo — a permanent reduction.`;
-  } else if (retAge > fraInt) {
+  } else if (retAge > fra) {
     const pctMore = ((selectedFactor - 1) * 100).toFixed(1);
     stratMsg.textContent = `✅ Waiting until ${retAge} gives you ${pctMore}% more than your FRA benefit — ${fmt(selectedMonthly - fraMonthly)}/mo extra, for life.`;
   } else {
@@ -241,9 +241,10 @@ function calc() {
     const diffPct = ((factor - 1) * 100).toFixed(1);
     const diffStr = diff >= 0 ? `+${diffPct}%` : `${diffPct}%`;
 
-    // Breakeven vs FRA
+    // Breakeven vs FRA — compare integer age against fractional fra
     let beStr = '—';
-    if (age < fraInt) {
+    if (age < fra) {
+      // Early claiming: how long until cumulative receipts catch up to claiming at FRA?
       const monthlyDiffVsFRA = fraMonthly - monthly;
       const monthsEarly = (fra - age) * 12;
       const foregoneVsFRA = monthly * monthsEarly;
@@ -251,7 +252,8 @@ function calc() {
         const be = fra + foregoneVsFRA / monthlyDiffVsFRA / 12;
         beStr = 'Age ' + be.toFixed(1);
       }
-    } else if (age > fraInt) {
+    } else if (age > fra) {
+      // Delayed claiming: how long until extra monthly makes up for foregone FRA payments?
       const monthlyDiffVsFRA = monthly - fraMonthly;
       const monthsLate = (age - fra) * 12;
       const foregoneVsFRA = fraMonthly * monthsLate;
@@ -263,12 +265,14 @@ function calc() {
       beStr = 'N/A (baseline)';
     }
 
-    const isFRA = Math.abs(age - fra) < 0.1 || (age === fraInt && fra === fraInt);
+    // Highlight FRA row: exact match only (integer FRAs 66/67); for fractional FRAs no row is exact
+    const isFRA = Math.abs(age - fra) < 0.01;
     const isSelected = age === retAge;
+    const fraNote = isFRA ? ' (FRA)' : (fra > age && fra < age + 1 ? ` (FRA is ${fraDisplay})` : '');
     const tr = document.createElement('tr');
     if (isSelected) tr.className = 'selected-row';
     else if (isFRA) tr.className = 'fra-row';
-    tr.innerHTML = `<td>${age}${isFRA ? ' (FRA)' : ''}${isSelected && !isFRA ? ' ◀' : ''}</td><td>${fmt(monthly)}/mo</td><td>${diffStr}</td><td>${beStr}</td>`;
+    tr.innerHTML = `<td>${age}${fraNote}${isSelected && !isFRA ? ' ◀' : ''}</td><td>${fmt(monthly)}/mo</td><td>${diffStr}</td><td>${beStr}</td>`;
     tbody.appendChild(tr);
   });
 
